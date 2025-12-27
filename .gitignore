@@ -1,9 +1,34 @@
+# Python
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
 .env
-.venv/
+.venv
+ENV/
+env.bak/
+venv.bak/
 
-# VS Code
+# Database
+*.db
+*.sqlite3
+
+# IDE
 .vscode/
-*.code-workspace
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test
+test*.py

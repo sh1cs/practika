@@ -1,78 +1,70 @@
 from sqlalchemy.orm import Session
-from . import models
+from sqlalchemy import and_
+from app.db import models
+from app import schemas
+from typing import Optional
 
-def create_category(db: Session, name: str):
-    new_category = models.Category(name=name)
-    db.add(new_category)
-    db.commit()
-    db.refresh(new_category)
-    return new_category
+# Category CRUD
+def get_category(db: Session, category_id: int):
+    return db.query(models.Category).filter(models.Category.id == category_id).first()
 
-def get_category(db: Session, cat_id: int):
-    return db.query(models.Category).filter(models.Category.id == cat_id).first()
-
-def get_all_categories(db: Session, skip: int = 0, limit: int = 100):
+def get_categories(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Category).offset(skip).limit(limit).all()
 
-def get_category_by_name(db: Session, name: str):
-    return db.query(models.Category).filter(models.Category.name == name).first()
-
-def update_category(db: Session, cat_id: int, new_name: str):
-    category = db.query(models.Category).filter(models.Category.id == cat_id).first()
-    if category:
-        category.name = new_name
-        db.commit()
-        db.refresh(category)
-    return category
-
-def delete_category(db: Session, cat_id: int):
-    category = db.query(models.Category).filter(models.Category.id == cat_id).first()
-    if category:
-        db.delete(category)
-        db.commit()
-    return category
-
-def create_book(db: Session, title: str, desc: str, price: float, cat_id: int, url: str = ""):
-    new_book = models.Book(
-        title=title,
-        description=desc,
-        price=price,
-        category_id=cat_id,
-        url=url
-    )
-    db.add(new_book)
+def create_category(db: Session, category: schemas.CategoryCreate):
+    db_category = models.Category(**category.model_dump())
+    db.add(db_category)
     db.commit()
-    db.refresh(new_book)
-    return new_book
+    db.refresh(db_category)
+    return db_category
 
+def update_category(db: Session, category_id: int, category: schemas.CategoryUpdate):
+    db_category = get_category(db, category_id)
+    if db_category:
+        for key, value in category.model_dump(exclude_unset=True).items():
+            setattr(db_category, key, value)
+        db.commit()
+        db.refresh(db_category)
+    return db_category
+
+def delete_category(db: Session, category_id: int):
+    db_category = get_category(db, category_id)
+    if db_category:
+        db.delete(db_category)
+        db.commit()
+        return True
+    return False
+
+# Book CRUD
 def get_book(db: Session, book_id: int):
     return db.query(models.Book).filter(models.Book.id == book_id).first()
 
-def get_all_books(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Book).offset(skip).limit(limit).all()
+def get_books(db: Session, skip: int = 0, limit: int = 100, category_id: Optional[int] = None):
+    query = db.query(models.Book)
+    if category_id is not None:
+        query = query.filter(models.Book.category_id == category_id)
+    return query.offset(skip).limit(limit).all()
 
-def get_books_by_category(db: Session, cat_id: int):
-    return db.query(models.Book).filter(models.Book.category_id == cat_id).all()
+def create_book(db: Session, book: schemas.BookCreate):
+    db_book = models.Book(**book.model_dump())
+    db.add(db_book)
+    db.commit()
+    db.refresh(db_book)
+    return db_book
 
-def update_book(db: Session, book_id: int, **kwargs):
-    book = db.query(models.Book).filter(models.Book.id == book_id).first()
-    if book:
-        for key, value in kwargs.items():
-            if hasattr(book, key) and value is not None:
-                setattr(book, key, value)
+def update_book(db: Session, book_id: int, book: schemas.BookUpdate):
+    db_book = get_book(db, book_id)
+    if db_book:
+        for key, value in book.model_dump(exclude_unset=True).items():
+            setattr(db_book, key, value)
         db.commit()
-        db.refresh(book)
-    return book
+        db.refresh(db_book)
+    return db_book
 
 def delete_book(db: Session, book_id: int):
-    book = db.query(models.Book).filter(models.Book.id == book_id).first()
-    if book:
-        db.delete(book)
+    db_book = get_book(db, book_id)
+    if db_book:
+        db.delete(db_book)
         db.commit()
-    return book
-
-def search_books(db: Session, term: str):
-    return db.query(models.Book).filter(
-        (models.Book.title.ilike(f"%{term}%")) | 
-        (models.Book.description.ilike(f"%{term}%"))
-    ).all()
+        return True
+    return False

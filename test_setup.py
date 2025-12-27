@@ -1,39 +1,55 @@
 import sys
 import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Добавляем путь к проекту
-project_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(project_root)
-
-from app.db.db import SessionLocal, create_all_tables
-from app.db.crud import create_category, create_book
+from sqlalchemy.orm import Session
+from app.db.db import engine, SessionLocal
+from app.db import models
+from app.db.crud import create_category, create_book, get_categories, get_books
+from app import schemas
 
 print("=== Тест подключения и создания данных ===")
 
-# Создаем таблицы
-create_all_tables()
-print("1. Таблицы созданы")
+# 1. Создаем таблицы
+models.Base.metadata.create_all(bind=engine)
+print("✓ Таблицы созданы")
 
-# Создаем сессию БД
-db = SessionLocal()
+# 2. Создаем тестовые данные
+db: Session = SessionLocal()
 
 try:
-    # Создаем категорию
-    print("2. Создаю категорию...")
-    cat1 = create_category(db, name='Test Category')
-    print(f"   Категория создана: {cat1.name}")
+    print("\n2. Создаю категорию...")
+    # Используем схему Pydantic
+    category_data = schemas.CategoryCreate(title="Test Category")
+    cat1 = create_category(db, category=category_data)
+    print(f"   ✓ Категория создана: id={cat1.id}, title='{cat1.title}'")
     
-    # Создаем книгу
-    print("3. Создаю книгу...")
-    book1 = create_book(db, title='Test Book', desc='Test Description', price=100.0, cat_id=cat1.id)
-    print(f"   Книга создана: {book1.title}")
+    print("\n3. Создаю книгу...")
+    # Создаем схему для книги
+    book_data = schemas.BookCreate(
+        title="Test Book",
+        description="Test Description",
+        price=9.99,
+        url="http://example.com/test",
+        category_id=cat1.id
+    )
+    book1 = create_book(db, book=book_data)
+    print(f"   ✓ Книга создана: id={book1.id}, title='{book1.title}'")
     
-    print("=== Тест завершен успешно ===")
+    print("\n4. Проверяю чтение данных...")
+    
+    categories = get_categories(db)
+    print(f"   ✓ Найдено категорий: {len(categories)}")
+    
+    books = get_books(db)
+    print(f"   ✓ Найдено книг: {len(books)}")
+    
+    print("\n=== Тест завершен успешно ===")
     
 except Exception as e:
-    print(f"Ошибка: {e}")
+    print(f"\n✗ Ошибка: {e}")
     import traceback
     traceback.print_exc()
-    db.rollback()
+    
 finally:
     db.close()
